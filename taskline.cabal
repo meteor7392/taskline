@@ -1,0 +1,44 @@
+cabal-version: 2.4
+name: taskline
+version: 0.1.0.0
+synopsis: A todo.txt-compatible command-line task manager
+license: MIT
+build-type: Simple
+
+category: CLI
+
+library
+  exposed-modules:
+      TaskLine.Types
+      TaskLine.Parse
+      TaskLine.Query
+      TaskLine.Store
+      TaskLine.Format
+  hs-source-dirs: src
+  build-depends:
+      base >=4.14 && <5,
+      directory,
+      filepath
+  default-language: Haskell2010
+
+executable taskline
+  main-is: Main.hs
+  hs-source-dirs: app
+  build-depends:
+      base,
+      taskline,
+      directory,
+      filepath,
+      time
+  default-language: Haskell2010
+
+test-suite taskline-test
+  type: exitcode-stdio-1.0
+  main-is: Main.hs
+  hs-source-dirs: test
+  build-depends:
+      base,
+      taskline,
+      directory,
+      filepath
+  default-language: Haskell2010
