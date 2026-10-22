@@ -1,6 +1,6 @@
 module TaskLine.Types where
 
-import Data.Char (isSpace)
+import Data.Char (isDigit, isSpace)
 import Data.List (isPrefixOf)
 
 data Priority = P Char | NoP deriving (Eq, Show)
@@ -48,3 +48,24 @@ extractMarker m s =
   where
     nub' [] = []
     nub' (x:xs) = x : nub' (filter (/= x) xs)
+
+priorityChar :: Priority -> Maybe Char
+priorityChar (P c) = Just c
+priorityChar NoP = Nothing
+
+validDate :: String -> Bool
+validDate s =
+  length s == 10 &&
+  case s of
+    [y1,y2,y3,y4,'-',m1,m2,'-',d1,d2] ->
+      all isDigit [y1,y2,y3,y4,m1,m2,d1,d2]
+    _ -> False
+
+setDue :: String -> String -> String
+setDue date desc =
+  let toks = words desc
+      kept = filter (not . isDueToken) toks
+  in unwords (kept ++ ["due:" ++ date])
+
+isDueToken :: String -> Bool
+isDueToken w = "due:" `isPrefixOf` w

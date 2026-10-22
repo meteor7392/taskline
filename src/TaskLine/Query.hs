@@ -20,5 +20,26 @@ filterPriority c = filter (\t -> taskPriority t == P (toUpper c))
 filterCompleted :: Bool -> [Task] -> [Task]
 filterCompleted b = filter (\t -> taskCompleted t == b)
 
+filterDue :: String -> [Task] -> [Task]
+filterDue d = filter ((== Just d) . taskDue)
+
+filterDueBefore :: String -> [Task] -> [Task]
+filterDueBefore d = filter (\t -> maybe False (< d) (taskDue t))
+
+filterDueAfter :: String -> [Task] -> [Task]
+filterDueAfter d = filter (\t -> maybe False (> d) (taskDue t))
+
+filterOverdue :: String -> [Task] -> [Task]
+filterOverdue today = filter (\t -> not (taskCompleted t) && maybe False (< today) (taskDue t))
+
 sortByPriority :: [Task] -> [Task]
 sortByPriority = sortOn (\t -> (taskPriority t, maybe "9999" id (taskCreationDate t)))
+
+sortByDue :: [Task] -> [Task]
+sortByDue = sortOn (\t -> maybe "9999-12-31" id (taskDue t))
+
+sortByCreated :: [Task] -> [Task]
+sortByCreated = sortOn (\t -> maybe "9999-12-31" id (taskCreationDate t))
+
+sortByDescription :: [Task] -> [Task]
+sortByDescription = sortOn taskDescription

@@ -10,6 +10,8 @@ diffable, and easy to sync.
   contexts `@`, projects `+`, `due:` dates)
 - Add, complete, and delete tasks by number
 - Filter lists by project, context, priority, or completion state
+- Filter and sort by due date, including overdue tasks
+- Edit task descriptions and priorities
 - Full-text search across descriptions
 - Summary statistics
 
@@ -36,9 +38,16 @@ taskline list
 # Filter
 taskline list --context home
 taskline list --priority A --all
+taskline list --due 2024-01-02
+taskline list --due-before 2024-02-01
+taskline list --overdue --sort due
 
-# Complete or delete by number (from `list`)
+# Complete, edit, or delete by number (from `list`)
 taskline done 1
+taskline pri 2 B
+taskline depri 2
+taskline due 1 2024-02-02
+taskline edit 1 "Buy oat milk @home +chores due:2024-02-02"
 taskline delete 2
 
 # Search and stats

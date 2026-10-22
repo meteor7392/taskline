@@ -2,7 +2,7 @@ module Main where
 
 import TaskLine.Types
 import TaskLine.Parse (parseTask, renderTask)
-import TaskLine.Query (filterContext, filterCompleted, matches)
+import TaskLine.Query (filterContext, filterCompleted, matches, filterDue, filterDueBefore, filterDueAfter, filterOverdue, sortByDue, sortByCreated, sortByPriority, filterProject, filterPriority)
 import TaskLine.Store (readTasks, writeTasks)
 import System.Directory (getTemporaryDirectory, removeFile)
 import System.FilePath ((</>))
@@ -55,4 +55,28 @@ runTests = do
   assert (length (filterContext "home" ts2) == 1) "ctx filter"
   assert (length (filterCompleted False ts2) == 1) "completed filter"
   assert (matches (head ts2) "home") "matches"
+
+  let dueTasks =
+        [ Task False NoP Nothing Nothing "a due:2024-01-15"
+        , Task False NoP Nothing Nothing "b due:2024-03-01"
+        , Task True NoP Nothing Nothing "c due:2024-01-10"
+        ]
+  assert (length (filterDue "2024-01-15" dueTasks) == 1) "due exact"
+  assert (length (filterDueBefore "2024-02-01" dueTasks) == 2) "due before"
+  assert (length (filterDueAfter "2024-02-01" dueTasks) == 1) "due after"
+  assert (length (filterOverdue "2024-02-01" dueTasks) == 1) "overdue"
+  assert (map taskDescription (sortByDue dueTasks) == ["c due:2024-01-10", "a due:2024-01-15", "b due:2024-03-01"]) "sort due"
+
+  let createdTasks =
+        [ Task False NoP (Just "2024-02-01") Nothing "later"
+        , Task False NoP (Just "2024-01-01") Nothing "earlier"
+        ]
+  assert (map taskDescription (sortByCreated createdTasks) == ["earlier", "later"]) "sort created"
+
+  assert (validDate "2024-01-02") "valid date"
+  assert (not (validDate "2024-1-2")) "invalid date"
+  assert (setDue "2024-02-02" "Buy milk @home due:2024-01-02" == "Buy milk @home due:2024-02-02") "set due replace"
+  assert (setDue "2024-02-02" "Buy milk @home" == "Buy milk @home due:2024-02-02") "set due append"
+  assert (priorityChar (P 'A') == Just 'A') "priority char"
+  assert (priorityChar NoP == Nothing) "priority none"
   putStrLn "tests ok"
