@@ -7,7 +7,7 @@ import TaskLine.Store (defaultFile, readTasks, writeTasks)
 import TaskLine.Format (formatList, formatStats)
 import System.Environment (getArgs)
 import System.Exit (exitFailure)
-import Data.Time (getCurrentTime, utctDay, formatTime, defaultTimeLocale)
+import Data.Time (getZonedTime, zonedTimeToLocalTime, localDay, formatTime, defaultTimeLocale)
 import Data.Char (isAlpha, toLower, toUpper)
 
 main :: IO ()
@@ -229,8 +229,8 @@ doEdit path n desc = do
 
 todayString :: IO String
 todayString = do
-  now <- getCurrentTime
-  return (formatTime defaultTimeLocale "%F" (utctDay now))
+  now <- getZonedTime
+  return (formatTime defaultTimeLocale "%F" (localDay (zonedTimeToLocalTime now)))
 
 usage :: String
 usage = unlines

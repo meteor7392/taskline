@@ -1,7 +1,9 @@
 module TaskLine.Types where
 
-import Data.Char (isDigit, isSpace)
+import Data.Char (isSpace)
 import Data.List (isPrefixOf)
+import Data.Time.Calendar (Day)
+import Data.Time.Format (parseTimeM, defaultTimeLocale)
 
 data Priority = P Char | NoP deriving (Eq, Show)
 
@@ -43,7 +45,7 @@ dueOf s =
 extractMarker :: Char -> String -> [String]
 extractMarker m s =
   let toks = words s
-      picked = [ takeWhile (not . isSpace) (drop 1 t) | t <- toks, not (null t), head t == m ]
+      picked = [ takeWhile (not . isSpace) (drop 1 t) | t <- toks, not (null t), head t == m, length t > 1 ]
   in nub' picked
   where
     nub' [] = []
@@ -55,11 +57,9 @@ priorityChar NoP = Nothing
 
 validDate :: String -> Bool
 validDate s =
-  length s == 10 &&
-  case s of
-    [y1,y2,y3,y4,'-',m1,m2,'-',d1,d2] ->
-      all isDigit [y1,y2,y3,y4,m1,m2,d1,d2]
-    _ -> False
+  case parseTimeM True defaultTimeLocale "%Y-%m-%d" s :: Maybe Day of
+    Just _ -> True
+    Nothing -> False
 
 setDue :: String -> String -> String
 setDue date desc =

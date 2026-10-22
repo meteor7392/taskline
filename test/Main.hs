@@ -75,6 +75,8 @@ runTests = do
 
   assert (validDate "2024-01-02") "valid date"
   assert (not (validDate "2024-1-2")) "invalid date"
+  assert (not (validDate "2024-13-01")) "invalid month"
+  assert (not (validDate "2024-01-32")) "invalid day"
   assert (setDue "2024-02-02" "Buy milk @home due:2024-01-02" == "Buy milk @home due:2024-02-02") "set due replace"
   assert (setDue "2024-02-02" "Buy milk @home" == "Buy milk @home due:2024-02-02") "set due append"
   assert (priorityChar (P 'A') == Just 'A') "priority char"
