@@ -44,8 +44,8 @@ stripDate :: String -> (Maybe String, String)
 stripDate s =
   let s' = trim s
   in case take 10 s' of
-       d@(y1:y2:y3:y4:'-':m1:m2:'-':dd1:dd2:_) 
-         | all isDigit [y1,y2,y3,y4,m1,m2,dd1,dd2] ->
+       d@(y1:y2:y3:y4:'-':m1:m2:'-':dd1:dd2:_)
+         | all isDigit [y1,y2,y3,y4,m1,m2,dd1,dd2] && validDate d ->
            (Just d, trim (drop 10 s'))
        _ -> (Nothing, s')
 

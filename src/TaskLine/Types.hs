@@ -39,7 +39,9 @@ projectsOf = extractMarker '+'
 dueOf :: String -> Maybe String
 dueOf s =
   case [ w | w <- words s, "due:" `isPrefixOf` w ] of
-    (w:_) -> Just (drop 4 w)
+    (w:_) ->
+      let d = drop 4 w
+      in if validDate d then Just d else Nothing
     [] -> Nothing
 
 extractMarker :: Char -> String -> [String]

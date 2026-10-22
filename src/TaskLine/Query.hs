@@ -21,25 +21,25 @@ filterCompleted :: Bool -> [Task] -> [Task]
 filterCompleted b = filter (\t -> taskCompleted t == b)
 
 filterDue :: String -> [Task] -> [Task]
-filterDue d = filter ((== Just d) . taskDue)
+filterDue d = filter (\t -> maybe False (\x -> validDate x && x == d && validDate d) (taskDue t))
 
 filterDueBefore :: String -> [Task] -> [Task]
-filterDueBefore d = filter (\t -> maybe False (< d) (taskDue t))
+filterDueBefore d = filter (\t -> maybe False (\x -> validDate x && validDate d && x < d) (taskDue t))
 
 filterDueAfter :: String -> [Task] -> [Task]
-filterDueAfter d = filter (\t -> maybe False (> d) (taskDue t))
+filterDueAfter d = filter (\t -> maybe False (\x -> validDate x && validDate d && x > d) (taskDue t))
 
 filterOverdue :: String -> [Task] -> [Task]
-filterOverdue today = filter (\t -> not (taskCompleted t) && maybe False (< today) (taskDue t))
+filterOverdue today = filter (\t -> not (taskCompleted t) && maybe False (\x -> validDate x && x < today) (taskDue t))
 
 sortByPriority :: [Task] -> [Task]
-sortByPriority = sortOn (\t -> (taskPriority t, maybe "9999" id (taskCreationDate t)))
+sortByPriority = sortOn (\t -> (taskPriority t, case taskCreationDate t of Just d | validDate d -> d; _ -> "9999-12-31"))
 
 sortByDue :: [Task] -> [Task]
-sortByDue = sortOn (\t -> maybe "9999-12-31" id (taskDue t))
+sortByDue = sortOn (\t -> case taskDue t of Just d | validDate d -> d; _ -> "9999-12-31")
 
 sortByCreated :: [Task] -> [Task]
-sortByCreated = sortOn (\t -> maybe "9999-12-31" id (taskCreationDate t))
+sortByCreated = sortOn (\t -> case taskCreationDate t of Just d | validDate d -> d; _ -> "9999-12-31")
 
 sortByDescription :: [Task] -> [Task]
 sortByDescription = sortOn taskDescription
