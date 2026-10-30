@@ -35,10 +35,11 @@ data ListOpts = ListOpts
   , loDueBefore :: Maybe String
   , loDueAfter :: Maybe String
   , loOverdue :: Bool
+  , loLimit :: Maybe Int
   }
 
 defaultListOpts :: ListOpts
-defaultListOpts = ListOpts Nothing Nothing Nothing False False Nothing Nothing Nothing Nothing False
+defaultListOpts = ListOpts Nothing Nothing Nothing False False Nothing Nothing Nothing Nothing False Nothing
 
 parseListFlags :: [String] -> ListOpts
 parseListFlags [] = defaultListOpts
@@ -65,6 +66,10 @@ parseListFlags ("--due-after":d:rest) =
   (parseListFlags rest) { loDueAfter = Just d }
 parseListFlags ("--overdue":rest) =
   (parseListFlags rest) { loOverdue = True }
+parseListFlags ("--limit":n:rest) =
+  case reads n of
+    [(i, "")] | i >= 0 -> (parseListFlags rest) { loLimit = Just i }
+    _ -> parseListFlags rest
 parseListFlags (_:rest) = parseListFlags rest
 
 dispatch :: FilePath -> [String] -> IO ()
@@ -89,7 +94,8 @@ dispatch path ("list":rest) = do
       t8 = case loDueAfter opts of Just d -> filterDueAfter d t7; Nothing -> t7
       t9 = if loOverdue opts then filterOverdue today t8 else t8
       sorted = applySort (loSort opts) t9
-  putStrLn (formatList sorted)
+      limited = case loLimit opts of Just n -> take n sorted; Nothing -> sorted
+  putStrLn (formatList limited)
 dispatch path ("add":rest) = do
   let desc = unwords rest
   if null desc then putStrLn "usage: add <description>" >> exitFailure
@@ -242,6 +248,7 @@ usage = unlines
   , "Commands:"
   , "  list [--project P] [--context C] [--priority X] [--completed] [--all]"
   , "       [--sort FIELD] [--due DATE] [--due-before DATE] [--due-after DATE] [--overdue]"
+  , "       [--limit N]"
   , "  add <description>"
   , "  done <n>"
   , "  delete <n>"
