@@ -118,9 +118,12 @@ dispatch path ("delete":n:_) = do
 dispatch path ("delete":_) = putStrLn "usage: delete <n>" >> exitFailure
 dispatch path ("rm":n:_) = dispatch path ("delete":n:[])
 dispatch path ("search":rest) = do
-  let kw = unwords rest
+  let (mLimit, kwWords) = parseSearchArgs rest
+      kw = unwords kwWords
   tasks <- readTasks path
-  putStrLn (formatList (filter (\t -> matches t kw) tasks))
+  let results = filter (\t -> matches t kw) tasks
+      limited = case mLimit of Just n -> take n results; Nothing -> results
+  putStrLn (formatList limited)
 dispatch path ("stats":_) = do
   tasks <- readTasks path
   putStrLn (formatStats tasks)
@@ -146,6 +149,20 @@ applySort (Just "date") = sortByCreated
 applySort (Just "description") = sortByDescription
 applySort (Just "desc") = sortByDescription
 applySort _ = id
+
+parseSearchArgs :: [String] -> (Maybe Int, [String])
+parseSearchArgs [] = (Nothing, [])
+parseSearchArgs ("--limit":n:rest) =
+  case reads n of
+    [(i, "")] | i >= 0 ->
+      let (limit, words') = parseSearchArgs rest
+      in (Just i, words')
+    _ ->
+      let (limit, words') = parseSearchArgs rest
+      in (limit, "--limit":n:words')
+parseSearchArgs (x:rest) =
+  let (limit, words') = parseSearchArgs rest
+  in (limit, x:words')
 
 validIndex :: Int -> [a] -> Bool
 validIndex i xs = i >= 1 && i <= length xs
@@ -257,7 +274,7 @@ usage = unlines
   , "  depri <n>"
   , "  due <n> YYYY-MM-DD"
   , "  edit <n> <description>"
-  , "  search <keyword>"
+  , "  search [--limit N] <keyword>"
   , "  stats"
   , "  help"
   , ""
