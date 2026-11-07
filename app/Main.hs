@@ -36,10 +36,11 @@ data ListOpts = ListOpts
   , loDueAfter :: Maybe String
   , loOverdue :: Bool
   , loLimit :: Maybe Int
+  , loSearch :: Maybe String
   }
 
 defaultListOpts :: ListOpts
-defaultListOpts = ListOpts Nothing Nothing Nothing False False Nothing Nothing Nothing Nothing False Nothing
+defaultListOpts = ListOpts Nothing Nothing Nothing False False Nothing Nothing Nothing Nothing False Nothing Nothing
 
 parseListFlags :: [String] -> ListOpts
 parseListFlags [] = defaultListOpts
@@ -70,6 +71,10 @@ parseListFlags ("--limit":n:rest) =
   case reads n of
     [(i, "")] | i >= 0 -> (parseListFlags rest) { loLimit = Just i }
     _ -> parseListFlags rest
+parseListFlags ("--search":kw:rest) =
+  (parseListFlags rest) { loSearch = Just kw }
+parseListFlags ("--match":kw:rest) =
+  (parseListFlags rest) { loSearch = Just kw }
 parseListFlags (_:rest) = parseListFlags rest
 
 dispatch :: FilePath -> [String] -> IO ()
@@ -79,21 +84,22 @@ dispatch path ("list":rest) = do
   today <- todayString
   let opts = parseListFlags rest
   tasks <- readTasks path
-  let t1 = case loProject opts of Just p -> filterProject p tasks; Nothing -> tasks
-      t2 = case loContext opts of Just c -> filterContext c t1; Nothing -> t1
-      t3 = case loPriority opts of Just c -> filterPriority c t2; Nothing -> t2
-      t4 = if loCompleted opts then filterCompleted True t3 else t3
-      hasFilter = loCompleted opts || loOverdue opts || loProject opts /= Nothing ||
+  let t1 = case loSearch opts of Just kw -> filter (\t -> matches t kw) tasks; Nothing -> tasks
+      t2 = case loProject opts of Just p -> filterProject p t1; Nothing -> t1
+      t3 = case loContext opts of Just c -> filterContext c t2; Nothing -> t2
+      t4 = case loPriority opts of Just c -> filterPriority c t3; Nothing -> t3
+      t5 = if loCompleted opts then filterCompleted True t4 else t4
+      hasFilter = loSearch opts /= Nothing || loCompleted opts || loOverdue opts || loProject opts /= Nothing ||
                   loContext opts /= Nothing || loPriority opts /= Nothing ||
                   loDue opts /= Nothing || loDueBefore opts /= Nothing ||
                   loDueAfter opts /= Nothing
       showAll = loAll opts || hasFilter
-      t5 = if showAll then t4 else filter (not . taskCompleted) t4
-      t6 = case loDue opts of Just d -> filterDue d t5; Nothing -> t5
-      t7 = case loDueBefore opts of Just d -> filterDueBefore d t6; Nothing -> t6
-      t8 = case loDueAfter opts of Just d -> filterDueAfter d t7; Nothing -> t7
-      t9 = if loOverdue opts then filterOverdue today t8 else t8
-      sorted = applySort (loSort opts) t9
+      t6 = if showAll then t5 else filter (not . taskCompleted) t5
+      t7 = case loDue opts of Just d -> filterDue d t6; Nothing -> t6
+      t8 = case loDueBefore opts of Just d -> filterDueBefore d t7; Nothing -> t7
+      t9 = case loDueAfter opts of Just d -> filterDueAfter d t8; Nothing -> t8
+      t10 = if loOverdue opts then filterOverdue today t9 else t9
+      sorted = applySort (loSort opts) t10
       limited = case loLimit opts of Just n -> take n sorted; Nothing -> sorted
   putStrLn (formatList limited)
 dispatch path ("add":rest) = do
@@ -270,7 +276,7 @@ usage = unlines
   , "Commands:"
   , "  list [--project P] [--context C] [--priority X] [--completed] [--all]"
   , "       [--sort FIELD] [--due DATE] [--due-before DATE] [--due-after DATE] [--overdue]"
-  , "       [--limit N]"
+  , "       [--search TEXT] [--match TEXT] [--limit N]"
   , "  add <description>"
   , "  done <n>"
   , "  delete <n>"
