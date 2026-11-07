@@ -42,6 +42,18 @@ runTests = do
       assert (taskCreationDate t == Just "2023-12-31") "credate"
     Nothing -> error "completed parse"
 
+  case parseTask "2024-01-01 Buy milk @home" of
+    Just t -> do
+      assert (taskCreationDate t == Just "2024-01-01") "leading date"
+      assert (taskDescription t == "Buy milk @home") "leading date desc"
+    Nothing -> error "leading date parse"
+
+  case parseTask "x 2024-01-02" of
+    Just t -> do
+      assert (taskCompleted t) "completed lone"
+      assert (taskCompletionDate t == Just "2024-01-02") "completed lone date"
+    Nothing -> error "completed lone parse"
+
   tmp <- getTemporaryDirectory
   let path = tmp </> "taskline-test.txt"
   _ <- try (removeFile path) :: IO (Either SomeException ())
@@ -79,6 +91,7 @@ runTests = do
   assert (not (validDate "2024-01-32")) "invalid day"
   assert (setDue "2024-02-02" "Buy milk @home due:2024-01-02" == "Buy milk @home due:2024-02-02") "set due replace"
   assert (setDue "2024-02-02" "Buy milk @home" == "Buy milk @home due:2024-02-02") "set due append"
+  assert (clearDue "Buy milk @home due:2024-01-02" == "Buy milk @home") "clear due"
   assert (priorityChar (P 'A') == Just 'A') "priority char"
   assert (priorityChar NoP == Nothing) "priority none"
   putStrLn "tests ok"

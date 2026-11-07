@@ -43,10 +43,9 @@ stripPrio s =
 stripDate :: String -> (Maybe String, String)
 stripDate s =
   let s' = trim s
-  in case take 10 s' of
-       d@(y1:y2:y3:y4:'-':m1:m2:'-':dd1:dd2:_)
-         | all isDigit [y1,y2,y3,y4,m1,m2,dd1,dd2] && validDate d ->
-           (Just d, trim (drop 10 s'))
+  in case break isSpace s' of
+       (tok, rest) | length tok == 10, validDate tok ->
+         (Just tok, trim rest)
        _ -> (Nothing, s')
 
 renderTask :: Task -> String

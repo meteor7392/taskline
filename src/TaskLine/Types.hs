@@ -69,5 +69,8 @@ setDue date desc =
       kept = filter (not . isDueToken) toks
   in unwords (kept ++ ["due:" ++ date])
 
+clearDue :: String -> String
+clearDue = unwords . filter (not . isDueToken) . words
+
 isDueToken :: String -> Bool
 isDueToken w = "due:" `isPrefixOf` w

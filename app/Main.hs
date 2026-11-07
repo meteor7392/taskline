@@ -135,7 +135,7 @@ dispatch path ("depri":n:_) = doDepri path n
 dispatch path ("deprioritize":n:_) = doDepri path n
 dispatch path ("depri":_) = putStrLn "usage: depri <n>" >> exitFailure
 dispatch path ("due":n:d:_) = doDue path n d
-dispatch path ("due":_) = putStrLn "usage: due <n> YYYY-MM-DD" >> exitFailure
+dispatch path ("due":_) = putStrLn "usage: due <n> YYYY-MM-DD|clear" >> exitFailure
 dispatch path ("edit":n:rest) = doEdit path n (unwords rest)
 dispatch path ("edit":_) = putStrLn "usage: edit <n> <description>" >> exitFailure
 dispatch path (cmd:_) = putStrLn ("unknown command: " ++ cmd) >> putStrLn usage >> exitFailure
@@ -223,17 +223,22 @@ doDepri path n = do
 doDue :: FilePath -> String -> String -> IO ()
 doDue path n d = do
   tasks <- readTasks path
-  if not (validDate d)
-    then putStrLn "usage: due <n> YYYY-MM-DD" >> exitFailure
-    else case reads n of
-           [(i, "")] ->
-             if not (validIndex i tasks)
-               then putStrLn "invalid task number"
-               else do
-                 let updated = setAt i (\t -> t { taskDescription = setDue d (taskDescription t) }) tasks
-                 writeTasks path updated
-                 putStrLn ("set due date for task " ++ show i)
-           _ -> putStrLn "usage: due <n> YYYY-MM-DD" >> exitFailure
+  case reads n of
+    [(i, "")] ->
+      if not (validIndex i tasks)
+        then putStrLn "invalid task number"
+        else if map toLower d `elem` ["clear", "none", "remove", "unset"]
+             then do
+               let updated = setAt i (\t -> t { taskDescription = clearDue (taskDescription t) }) tasks
+               writeTasks path updated
+               putStrLn ("cleared due date for task " ++ show i)
+             else if validDate d
+                  then do
+                    let updated = setAt i (\t -> t { taskDescription = setDue d (taskDescription t) }) tasks
+                    writeTasks path updated
+                    putStrLn ("set due date for task " ++ show i)
+                  else putStrLn "usage: due <n> YYYY-MM-DD|clear" >> exitFailure
+    _ -> putStrLn "usage: due <n> YYYY-MM-DD|clear" >> exitFailure
 
 doEdit :: FilePath -> String -> String -> IO ()
 doEdit path n desc = do
@@ -272,7 +277,7 @@ usage = unlines
   , "  rm <n>"
   , "  pri <n> <priority>"
   , "  depri <n>"
-  , "  due <n> YYYY-MM-DD"
+  , "  due <n> YYYY-MM-DD|clear"
   , "  edit <n> <description>"
   , "  search [--limit N] <keyword>"
   , "  stats"

@@ -47,6 +47,7 @@ taskline done 1
 taskline pri 2 B
 taskline depri 2
 taskline due 1 2024-02-02
+taskline due 1 clear
 taskline edit 1 "Buy oat milk @home +chores due:2024-02-02"
 taskline delete 2
 
