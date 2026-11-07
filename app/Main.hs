@@ -2,7 +2,7 @@ module Main where
 
 import TaskLine.Types
 import TaskLine.Parse (parseTask, renderTask)
-import TaskLine.Query (matches, filterProject, filterContext, filterPriority, filterCompleted, filterDue, filterDueBefore, filterDueAfter, filterOverdue, sortByPriority, sortByDue, sortByCreated, sortByDescription)
+import TaskLine.Query (matches, filterProject, filterContext, filterPriority, filterCompleted, filterDue, filterDueBefore, filterDueAfter, filterOverdue, sortByPriority, sortByDue, sortByCreated, sortByDescription, sortByContext, sortByProject)
 import TaskLine.Store (defaultFile, readTasks, writeTasks)
 import TaskLine.Format (formatList, formatStats)
 import System.Environment (getArgs)
@@ -154,6 +154,10 @@ applySort (Just "created") = sortByCreated
 applySort (Just "date") = sortByCreated
 applySort (Just "description") = sortByDescription
 applySort (Just "desc") = sortByDescription
+applySort (Just "context") = sortByContext
+applySort (Just "ctx") = sortByContext
+applySort (Just "project") = sortByProject
+applySort (Just "proj") = sortByProject
 applySort _ = id
 
 parseSearchArgs :: [String] -> (Maybe Int, [String])

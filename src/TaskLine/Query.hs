@@ -43,3 +43,9 @@ sortByCreated = sortOn (\t -> case taskCreationDate t of Just d | validDate d ->
 
 sortByDescription :: [Task] -> [Task]
 sortByDescription = sortOn taskDescription
+
+sortByContext :: [Task] -> [Task]
+sortByContext = sortOn (\t -> case taskContexts t of (c:_) -> c; [] -> "~")
+
+sortByProject :: [Task] -> [Task]
+sortByProject = sortOn (\t -> case taskProjects t of (p:_) -> p; [] -> "~")
