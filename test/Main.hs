@@ -3,7 +3,7 @@ module Main where
 import TaskLine.Types
 import TaskLine.Parse (parseTask, renderTask)
 import TaskLine.Query (filterContext, filterCompleted, matches, filterDue, filterDueBefore, filterDueAfter, filterOverdue, sortByDue, sortByCreated, sortByPriority, filterProject, filterPriority)
-import TaskLine.Store (readTasks, writeTasks)
+import TaskLine.Store (readTasks, writeTasks, archiveCompleted)
 import System.Directory (getTemporaryDirectory, removeFile)
 import System.FilePath ((</>))
 import Control.Exception (try, SomeException)
@@ -61,7 +61,18 @@ runTests = do
   ts <- readTasks path
   assert (length ts == 1) "store count"
   assert (taskDescription (head ts) == "Hello @x") "store desc"
+
+  let donePath = tmp </> "done.txt"
+  _ <- try (removeFile donePath) :: IO (Either SomeException ())
+  writeTasks path [Task True NoP (Just "2024-01-01") (Just "2024-01-02") "Done task", Task False NoP Nothing Nothing "Pending task"]
+  archived <- archiveCompleted path
+  assert (archived == 1) "archive count"
+  remaining <- readTasks path
+  assert (length remaining == 1) "archive remaining"
+  archivedTasks <- readTasks donePath
+  assert (length archivedTasks == 1) "archive done"
   _ <- try (removeFile path) :: IO (Either SomeException ())
+  _ <- try (removeFile donePath) :: IO (Either SomeException ())
 
   let ts2 = [Task False (P 'A') Nothing Nothing "a @home +p", Task True NoP Nothing (Just "2024") "b"]
   assert (length (filterContext "home" ts2) == 1) "ctx filter"

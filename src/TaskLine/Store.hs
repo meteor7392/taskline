@@ -3,7 +3,7 @@ module TaskLine.Store where
 import TaskLine.Types
 import TaskLine.Parse (parseTask, renderTask)
 import System.Directory (createDirectoryIfMissing, doesFileExist)
-import System.FilePath ((</>), takeDirectory)
+import System.FilePath ((</>), takeDirectory, replaceFileName)
 import System.Environment (getEnv)
 import Control.Exception (try, evaluate, IOException)
 
@@ -39,3 +39,29 @@ writeTasks :: FilePath -> [Task] -> IO ()
 writeTasks path tasks = do
   createDirectoryIfMissing True (takeDirectory path)
   writeFile path (unlines (map renderTask tasks))
+
+archiveCompleted :: FilePath -> IO Int
+archiveCompleted path = do
+  tasks <- readTasks path
+  let completed = filter taskCompleted tasks
+      pending = filter (not . taskCompleted) tasks
+  if null completed
+    then return 0
+    else do
+      let donePath = replaceFileName path "done.txt"
+      existing <- readTasks donePath
+      writeTasks donePath (existing ++ completed)
+      writeTasks path pending
+      return (length completed)
+
+archiveTasks :: FilePath -> IO Int
+archiveTasks = archiveCompleted
+
+archive :: FilePath -> IO Int
+archive = archiveCompleted
+
+archiveDone :: FilePath -> IO Int
+archiveDone = archiveCompleted
+
+moveCompleted :: FilePath -> IO Int
+moveCompleted = archiveCompleted

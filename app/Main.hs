@@ -3,12 +3,13 @@ module Main where
 import TaskLine.Types
 import TaskLine.Parse (parseTask, renderTask)
 import TaskLine.Query (matches, filterProject, filterContext, filterPriority, filterCompleted, filterDue, filterDueBefore, filterDueAfter, filterOverdue, sortByPriority, sortByDue, sortByCreated, sortByDescription, sortByContext, sortByProject)
-import TaskLine.Store (defaultFile, readTasks, writeTasks)
+import TaskLine.Store (defaultFile, readTasks, writeTasks, archiveCompleted)
 import TaskLine.Format (formatList, formatStats)
 import System.Environment (getArgs)
 import System.Exit (exitFailure)
 import Data.Time (getZonedTime, zonedTimeToLocalTime, localDay, formatTime, defaultTimeLocale)
 import Data.Char (isAlpha, toLower, toUpper)
+import Data.List (sort, nub)
 
 main :: IO ()
 main = do
@@ -37,10 +38,11 @@ data ListOpts = ListOpts
   , loOverdue :: Bool
   , loLimit :: Maybe Int
   , loSearch :: Maybe String
+  , loReverse :: Bool
   }
 
 defaultListOpts :: ListOpts
-defaultListOpts = ListOpts Nothing Nothing Nothing False False Nothing Nothing Nothing Nothing False Nothing Nothing
+defaultListOpts = ListOpts Nothing Nothing Nothing False False Nothing Nothing Nothing Nothing False Nothing Nothing False
 
 parseListFlags :: [String] -> ListOpts
 parseListFlags [] = defaultListOpts
@@ -75,6 +77,10 @@ parseListFlags ("--search":kw:rest) =
   (parseListFlags rest) { loSearch = Just kw }
 parseListFlags ("--match":kw:rest) =
   (parseListFlags rest) { loSearch = Just kw }
+parseListFlags ("--reverse":rest) =
+  (parseListFlags rest) { loReverse = True }
+parseListFlags ("-r":rest) =
+  (parseListFlags rest) { loReverse = True }
 parseListFlags (_:rest) = parseListFlags rest
 
 dispatch :: FilePath -> [String] -> IO ()
@@ -100,7 +106,8 @@ dispatch path ("list":rest) = do
       t9 = case loDueAfter opts of Just d -> filterDueAfter d t8; Nothing -> t8
       t10 = if loOverdue opts then filterOverdue today t9 else t9
       sorted = applySort (loSort opts) t10
-      limited = case loLimit opts of Just n -> take n sorted; Nothing -> sorted
+      ordered = if loReverse opts then reverse sorted else sorted
+      limited = case loLimit opts of Just n -> take n ordered; Nothing -> ordered
   putStrLn (formatList limited)
 dispatch path ("add":rest) = do
   let desc = unwords rest
@@ -124,11 +131,12 @@ dispatch path ("delete":n:_) = do
 dispatch path ("delete":_) = putStrLn "usage: delete <n>" >> exitFailure
 dispatch path ("rm":n:_) = dispatch path ("delete":n:[])
 dispatch path ("search":rest) = do
-  let (mLimit, kwWords) = parseSearchArgs rest
+  let (mLimit, reversed, kwWords) = parseSearchArgs rest
       kw = unwords kwWords
   tasks <- readTasks path
   let results = filter (\t -> matches t kw) tasks
-      limited = case mLimit of Just n -> take n results; Nothing -> results
+      ordered = if reversed then reverse results else results
+      limited = case mLimit of Just n -> take n ordered; Nothing -> ordered
   putStrLn (formatList limited)
 dispatch path ("stats":_) = do
   tasks <- readTasks path
@@ -144,6 +152,21 @@ dispatch path ("due":n:d:_) = doDue path n d
 dispatch path ("due":_) = putStrLn "usage: due <n> YYYY-MM-DD|clear" >> exitFailure
 dispatch path ("edit":n:rest) = doEdit path n (unwords rest)
 dispatch path ("edit":_) = putStrLn "usage: edit <n> <description>" >> exitFailure
+dispatch path ("append":n:rest) = doAppend path n (unwords rest)
+dispatch path ("append":_) = putStrLn "usage: append <n> <text>" >> exitFailure
+dispatch path ("prepend":n:rest) = doPrepend path n (unwords rest)
+dispatch path ("prepend":_) = putStrLn "usage: prepend <n> <text>" >> exitFailure
+dispatch path ("archive":_) = do
+  n <- archiveCompleted path
+  putStrLn ("archived " ++ show n ++ " completed task(s)")
+dispatch path ("listcon":_) = do
+  tasks <- readTasks path
+  putStrLn (unlines (sort (nub (concatMap taskContexts tasks))))
+dispatch path ("listproj":_) = do
+  tasks <- readTasks path
+  putStrLn (unlines (sort (nub (concatMap taskProjects tasks))))
+dispatch path ("contexts":_) = dispatch path ("listcon":[])
+dispatch path ("projects":_) = dispatch path ("listproj":[])
 dispatch path (cmd:_) = putStrLn ("unknown command: " ++ cmd) >> putStrLn usage >> exitFailure
 
 applySort :: Maybe String -> [Task] -> [Task]
@@ -160,19 +183,25 @@ applySort (Just "project") = sortByProject
 applySort (Just "proj") = sortByProject
 applySort _ = id
 
-parseSearchArgs :: [String] -> (Maybe Int, [String])
-parseSearchArgs [] = (Nothing, [])
+parseSearchArgs :: [String] -> (Maybe Int, Bool, [String])
+parseSearchArgs [] = (Nothing, False, [])
 parseSearchArgs ("--limit":n:rest) =
   case reads n of
     [(i, "")] | i >= 0 ->
-      let (limit, words') = parseSearchArgs rest
-      in (Just i, words')
+      let (limit, reversed, words') = parseSearchArgs rest
+      in (Just i, reversed, words')
     _ ->
-      let (limit, words') = parseSearchArgs rest
-      in (limit, "--limit":n:words')
+      let (limit, reversed, words') = parseSearchArgs rest
+      in (limit, reversed, "--limit":n:words')
+parseSearchArgs ("--reverse":rest) =
+  let (limit, _, words') = parseSearchArgs rest
+  in (limit, True, words')
+parseSearchArgs ("-r":rest) =
+  let (limit, _, words') = parseSearchArgs rest
+  in (limit, True, words')
 parseSearchArgs (x:rest) =
-  let (limit, words') = parseSearchArgs rest
-  in (limit, x:words')
+  let (limit, reversed, words') = parseSearchArgs rest
+  in (limit, reversed, x:words')
 
 validIndex :: Int -> [a] -> Bool
 validIndex i xs = i >= 1 && i <= length xs
@@ -265,6 +294,32 @@ doEdit path n desc = do
                  putStrLn ("edited task " ++ show i)
            _ -> putStrLn "usage: edit <n> <description>" >> exitFailure
 
+doAppend :: FilePath -> String -> String -> IO ()
+doAppend path n text = do
+  tasks <- readTasks path
+  case reads n of
+    [(i, "")] ->
+      if not (validIndex i tasks) || null text
+        then putStrLn "usage: append <n> <text>"
+        else do
+          let updated = setAt i (\t -> t { taskDescription = taskDescription t ++ " " ++ text }) tasks
+          writeTasks path updated
+          putStrLn ("appended to task " ++ show i)
+    _ -> putStrLn "usage: append <n> <text>" >> exitFailure
+
+doPrepend :: FilePath -> String -> String -> IO ()
+doPrepend path n text = do
+  tasks <- readTasks path
+  case reads n of
+    [(i, "")] ->
+      if not (validIndex i tasks) || null text
+        then putStrLn "usage: prepend <n> <text>"
+        else do
+          let updated = setAt i (\t -> t { taskDescription = text ++ " " ++ taskDescription t }) tasks
+          writeTasks path updated
+          putStrLn ("prepended to task " ++ show i)
+    _ -> putStrLn "usage: prepend <n> <text>" >> exitFailure
+
 todayString :: IO String
 todayString = do
   now <- getZonedTime
@@ -280,7 +335,7 @@ usage = unlines
   , "Commands:"
   , "  list [--project P] [--context C] [--priority X] [--completed] [--all]"
   , "       [--sort FIELD] [--due DATE] [--due-before DATE] [--due-after DATE] [--overdue]"
-  , "       [--search TEXT] [--match TEXT] [--limit N]"
+  , "       [--search TEXT] [--match TEXT] [--limit N] [--reverse]"
   , "  add <description>"
   , "  done <n>"
   , "  delete <n>"
@@ -289,7 +344,14 @@ usage = unlines
   , "  depri <n>"
   , "  due <n> YYYY-MM-DD|clear"
   , "  edit <n> <description>"
-  , "  search [--limit N] <keyword>"
+  , "  append <n> <text>"
+  , "  prepend <n> <text>"
+  , "  archive"
+  , "  listcon"
+  , "  listproj"
+  , "  contexts"
+  , "  projects"
+  , "  search [--limit N] [--reverse] <keyword>"
   , "  stats"
   , "  help"
   , ""

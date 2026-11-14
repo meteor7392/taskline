@@ -9,8 +9,12 @@ diffable, and easy to sync.
 - Parse and render todo.txt lines (priority, creation/completion dates,
   contexts `@`, projects `+`, `due:` dates)
 - Add, complete, and delete tasks by number
+- Append or prepend text to a task description
+- Archive completed tasks to `done.txt`
+- List contexts and projects
 - Filter lists by project, context, priority, or completion state
 - Filter and sort by due date, including overdue tasks
+- Reverse list and search results
 - Edit task descriptions and priorities
 - Full-text search across descriptions
 - Summary statistics
@@ -41,6 +45,7 @@ taskline list --priority A --all
 taskline list --due 2024-01-02
 taskline list --due-before 2024-02-01
 taskline list --overdue --sort due
+taskline list --reverse
 
 # Complete, edit, or delete by number (from `list`)
 taskline done 1
@@ -49,15 +54,22 @@ taskline depri 2
 taskline due 1 2024-02-02
 taskline due 1 clear
 taskline edit 1 "Buy oat milk @home +chores due:2024-02-02"
+taskline append 1 "from store"
+taskline prepend 1 "Urgent:"
 taskline delete 2
 
 # Search and stats
 taskline search milk
+taskline search --reverse --limit 5 milk
+taskline listcon
+taskline listproj
+taskline archive
 taskline stats
 ```
 
 Storage defaults to `~/.taskline/todo.txt`. Override with `--file PATH`
-or the `TASKLINE_FILE` environment variable.
+or the `TASKLINE_FILE` environment variable. Completed tasks are archived to
+`done.txt` in the same directory.
 
 ## Format
 
